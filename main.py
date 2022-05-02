@@ -1,10 +1,15 @@
+from tqdm import tqdm
+
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
+
 from models.encoder import FS_Encoder, NeuralNetwork, FS_Encoder2
 from datasets.dataloader import FewShot_Dataloader
 from datasets.fewshot_sampler import NShotTaskSampler
 from models.metrics import euclidean_dist
+
 
 evaluation_episodes = 1000
 episodes_per_epoch = 100
@@ -66,23 +71,29 @@ enc2 = FS_Encoder2().to(device, dtype=torch.double)
 n_support = n_train*k_train
 n_query = k_train*q_train
 
-for data in train_mris_dl:
+for data in tqdm(train_mris_dl):
 
     inputs, labels = data
     inputs = inputs.unsqueeze(1).to(device, dtype=torch.double)
-    print(f'inputs {inputs.dtype}')
+    #print(f'inputs {inputs.dtype}')
 
-    #outputs = enc(inputs)
-    outputs = enc2(inputs)
-    #outputs = nnet(inputs)
-    print(f'outputs {outputs.shape}')
+    outputs = enc(inputs)
+    #print(f'outputs {outputs.shape}')
 
     support = outputs[:n_support]
-    query = outputs[n_query:]
-    print(f'Size of support set = {support.shape}, Size of query set = {query.shape} \n')
+    query = outputs[n_support:]
+    # print(f'Size of support set = {support.shape}, Size of query set = {query.shape} \n')
 
-    dists = euclidean_dist(support, query)
+    prototype = torch.sum(support, dim=0, keepdims=True)/support.shape[1]
+    # print(f'Size of prototype = {prototype.shape}\n')
 
-    
+    dists = euclidean_dist(query, prototype)
+
+    log_p_y = F.log_softmax(-dists, dim=1).view(k_train, q_train, -1)
+
+print(f'Size of prototype = {prototype.shape}\n')
+print(f'Distancias = {dists} \n')
+print(f'Probabilities = {log_p_y} \n')
+
 
 print('Finished Training')
