@@ -52,8 +52,8 @@ class FewShot_Dataloader(Dataset):
             load_slice = self.df.at[index, 'Slice']
             label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
             label = np.where(label_ == self.label_dict['GM'], label_, 0)
-            label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
-            label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
+            #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
+            #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
             return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
         elif self.phase == 'validating':
