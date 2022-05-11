@@ -13,6 +13,7 @@ class FewShot_Dataloader(Dataset):
         self.path = path
         self.label_dict = { 'GM' : 1, 'BG' : 2, 'WM' : 3, 'WML' : 4,
                             'CSF' : 5, 'VEN' : 6, 'CER' : 7, 'BSTEM' : 8}
+
         self.classes = ['GM', 'WM', 'CSF']
 
         self.subjects = next(os.walk(self.path))[1] # [2]: lists files; [1]: lists subdirectories; [0]: ?
@@ -39,9 +40,10 @@ class FewShot_Dataloader(Dataset):
                 label_path = os.path.join(self.path, subject, label_name)
 
                 for slice_ in range(slices):
-                    self.L.append([subject, slice_, mri_path, label_path])
+                    for class_ in self.classes:
+                        self.L.append([subject, slice_, mri_path, label_path, class_])
 
-            self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
+            self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label', 'Class ID'])
 
         elif phase == 'testing':
             for subject in self.subjects[:]:
@@ -50,9 +52,10 @@ class FewShot_Dataloader(Dataset):
                 label_path = os.path.join(self.path, subject, label_name)
 
                 for slice_ in range(slices):
-                    self.L.append([subject, slice_, mri_path, label_path])
+                    for class_ in self.classes:
+                        self.L.append([subject, slice_, mri_path, label_path, class_])
 
-            self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
+            self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label', 'Class ID'])
 
 
     def __len__(self):
