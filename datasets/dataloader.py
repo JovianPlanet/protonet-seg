@@ -13,6 +13,7 @@ class FewShot_Dataloader(Dataset):
         self.path = path
         self.label_dict = { 'GM' : 1, 'BG' : 2, 'WM' : 3, 'WML' : 4,
                             'CSF' : 5, 'VEN' : 6, 'CER' : 7, 'BSTEM' : 8}
+        self.classes = ['GM', 'WM', 'CSF']
 
         self.subjects = next(os.walk(self.path))[1] # [2]: lists files; [1]: lists subdirectories; [0]: ?
 
