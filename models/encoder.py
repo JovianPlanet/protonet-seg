@@ -25,6 +25,7 @@ class FS_Encoder(nn.Module):
         #print(f'Features shape = {features.shape}\n')
         return self.flatten(features)
 
+
 '''
 Hace lo mismo que FS_Encoder
 '''
@@ -59,7 +60,34 @@ class FS_Encoder2(nn.Module):
         print(f'Features shape = {features.shape}\n')
         return self.flatten(features)
 
+'''
+class UNET_Encoder(nn.Module):
+    def __init__(self):
+        super(UNET_Encoder, self).__init__()
+        self.unet_seq = nn.Sequential(
+        )
 
+    def down_convs(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels),
+            nn.MaxPool2d(kernel_size=2))
+
+    def no_pool(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1))
+
+
+
+    def up_convs(self):
+        return nn.Sequential(
+            )'''
+
+            
 class Net(nn.Module):
 
     def __init__(self):

@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 
 def euclidean_dist(x, y):
 
@@ -19,4 +20,14 @@ def euclidean_dist(x, y):
     y = y.unsqueeze(0).expand(n, m, d)
 
     return torch.pow(x - y, 2).sum(2)
+
+def cosine_dist(x, y):
+    cos = nn.CosineSimilarity(dim=1)
+    # print(f'shape distancias = {cos(x, y).shape}')
+        
+    return cos(x, y) #cos(x.unsqueeze(0), y)
+
+def probs(x):
+    p = nn.Softmax(dim=0)
+    return p(x)
 
