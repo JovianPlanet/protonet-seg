@@ -1,7 +1,9 @@
 *.pyc
 *.log
+*.pth
 **/__pycache__
 **/data
 *.ipynb_checkpoints
 /datasets/test_dl.py
 example.py
+super_main.py

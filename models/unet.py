@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.nn import init
+#from torch.nn import init
 
 '''
 Implementaci'on de Unet basado en: https://github.com/jaxony/unet-pytorch
@@ -132,13 +132,13 @@ class UnetEncoder(nn.Module):
         self.down_convs = nn.ModuleList(self.down_convs)
         self.up_convs = nn.ModuleList(self.up_convs)
 
-        # self.reset_params()
+        self.reset_params()
 
     @staticmethod
     def weight_init(m):
         if isinstance(m, nn.Conv2d):
-            init.xavier_normal(m.weight)
-            init.constant(m.bias, 0)
+            nn.init.xavier_normal_(m.weight)
+            nn.init.constant_(m.bias, 0)
 
 
     def reset_params(self):
@@ -163,3 +163,85 @@ class UnetEncoder(nn.Module):
         # as this module includes a softmax already.
         # x = self.conv_final(x)
         return x
+
+
+class Unet(nn.Module):
+
+    def __init__(self, num_classes, in_channels=1, depth=3, start_filts=64):
+
+        """
+        Arguments:
+            in_channels: int, number of channels in the input tensor.
+                Default is 3 for RGB images.
+            depth: int, number of MaxPools in the U-Net.
+            start_filts: int, number of convolutional filters for the 
+                first conv.
+            up_mode: string, type of upconvolution. Choices: 'transpose'
+                for transpose convolution or 'upsample' for nearest neighbour
+                upsampling.
+        """
+        super(Unet, self).__init__()
+
+        self.num_classes = num_classes
+        self.in_channels = in_channels
+        self.start_filts = start_filts
+        self.depth = depth
+
+        self.down_convs = []
+        self.up_convs = []
+
+        # create the encoder pathway and add to a list
+        for i in range(depth):
+            ins = self.in_channels if i == 0 else outs
+            outs = self.start_filts*(2**i)
+            pooling = True if i < depth-1 else False
+
+            down_conv = DownConv(ins, outs, pooling=pooling)
+            self.down_convs.append(down_conv)
+
+        # create the decoder pathway and add to a list
+        # - careful! decoding only requires depth-1 blocks
+        for i in range(depth-1):
+            ins = outs
+            outs = ins // 2
+            up_conv = UpConv(ins, outs)
+            self.up_convs.append(up_conv)
+
+        self.conv_final = conv1x1(outs, self.num_classes) # No necesito esta convolucion ya que voy a usar las caracteristicas
+
+        # add the list of modules to current module
+        self.down_convs = nn.ModuleList(self.down_convs)
+        self.up_convs = nn.ModuleList(self.up_convs)
+
+        self.reset_params()
+
+    @staticmethod
+    def weight_init(m):
+        if isinstance(m, nn.Conv2d):
+            nn.init.xavier_normal_(m.weight)
+            nn.init.constant_(m.bias, 0)
+
+
+    def reset_params(self):
+        for i, m in enumerate(self.modules()):
+            self.weight_init(m)
+
+
+    def forward(self, x):
+        encoder_outs = []
+         
+        # encoder pathway, save outputs for merging
+        for i, module in enumerate(self.down_convs):
+            x, before_pool = module(x)
+            encoder_outs.append(before_pool)
+
+        for i, module in enumerate(self.up_convs):
+            before_pool = encoder_outs[-(i+2)]
+            x = module(before_pool, x)
+        
+        # No softmax is used. This means you need to use
+        # nn.CrossEntropyLoss is your training script,
+        # as this module includes a softmax already.
+        x = self.conv_final(x)
+        return x
+

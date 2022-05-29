@@ -1,9 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-#import torch
 from torch.utils.data import Dataset
-#from torchvision import transforms
 import nibabel as nib
 
 class FewShot_Dataloader(Dataset):
@@ -21,7 +19,7 @@ class FewShot_Dataloader(Dataset):
 
         if phase == 'training':
 
-            for i, subject in enumerate(self.subjects[0]):
+            for i, subject in enumerate(self.subjects[:4]):
                 mri_path = os.path.join(self.path, subject, mri_name)
                 label_path = os.path.join(self.path, subject, label_name)
 
@@ -31,7 +29,7 @@ class FewShot_Dataloader(Dataset):
             self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
 
         elif phase == 'validating':
-            for i, subject in enumerate(self.subjects[1]):
+            for i, subject in enumerate(self.subjects[4]):
                 mri_path = os.path.join(self.path, subject, mri_name)
                 label_path = os.path.join(self.path, subject, label_name)
 
@@ -60,10 +58,11 @@ class FewShot_Dataloader(Dataset):
             load_path = self.df.at[index, 'Path MRI']
             mri = nib.load(load_path).get_data()
             load_slice = self.df.at[index, 'Slice']
+            label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
             label = np.where(label_ == self.label_dict['GM'], label_, 0)
             #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
             #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
-            return mri[:, :, load_slice], label[:, :, load_slice], load_path, load_slice
+            return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
         elif self.phase == 'testing':
             pass #return self.patches[index], self.whole_vol

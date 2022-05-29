@@ -22,6 +22,46 @@ def plot_batch(x, y):
     	fig.tight_layout()
     	plt.show()
 
+def plot_batch_full(x, y, p):
+
+    x = x.squeeze(1)
+
+    for im in range(x.shape[0]):
+
+        fig = plt.figure(figsize=(16, 16))
+        fig.subplots_adjust(hspace=1, wspace=1)
+
+        ax1 = fig.add_subplot(1, 3, 1)
+        ax1.axis("off")
+        ax1.imshow(x[im, :, :].cpu().detach().numpy(), cmap="gray")
+
+        ax2 = fig.add_subplot(1, 3, 2)
+        ax2.axis("off")
+        ax2.imshow(y[im, :, :].cpu().detach().numpy(), cmap="gray")
+
+        ax3 = fig.add_subplot(1, 3, 3)
+        ax3.axis("off")
+        ax3.imshow(p[im, :, :].cpu().detach().numpy(), cmap="gray")
+
+        fig.tight_layout()
+        plt.show()
+
+def plot_single(x, y):
+    x = x.squeeze(0)
+    fig = plt.figure(figsize=(16, 16))
+    fig.subplots_adjust(hspace=1, wspace=1)
+
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.axis("off")
+    ax1.imshow(x.cpu().detach().numpy(), cmap="gray")
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.axis("off")
+    ax2.imshow(y.cpu().detach().numpy(), cmap="gray")
+
+    fig.tight_layout()
+    plt.show()
+
 def query_plots(p, x_query, y_query):
     fig = plt.figure(figsize=(16, 16))
     fig.subplots_adjust(hspace=1 ,wspace=1)
