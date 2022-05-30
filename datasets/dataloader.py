@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 import nibabel as nib
 
@@ -22,9 +23,12 @@ class FewShot_Dataloader(Dataset):
             for i, subject in enumerate(self.subjects[:4]):
                 mri_path = os.path.join(self.path, subject, mri_name)
                 label_path = os.path.join(self.path, subject, label_name)
+                label_ = np.int16(nib.load(label_path).get_data())
+                label_ = np.where(label_ == self.label_dict['GM'], label_, 0)
 
                 for slice_ in range(slices):
-                    self.L.append([subject, slice_, mri_path, label_path])
+                    if np.sum(label_[:, :, slice_]) > 0:
+                        self.L.append([subject, slice_, mri_path, label_path])
 
             self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
 
