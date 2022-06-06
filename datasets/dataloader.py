@@ -20,20 +20,31 @@ class FewShot_Dataloader(Dataset):
 
         if phase == 'training':
 
-            for i, subject in enumerate(self.subjects[:4]):
+            for i, subject in enumerate(self.subjects[:]):
                 mri_path = os.path.join(self.path, subject, mri_name)
                 label_path = os.path.join(self.path, subject, label_name)
                 label_ = np.int16(nib.load(label_path).get_data())
                 label_ = np.where(label_ == self.label_dict['GM'], label_, 0)
 
                 for slice_ in range(slices):
-                    if np.sum(label_[:, :, slice_]) > 0:
-                        self.L.append([subject, slice_, mri_path, label_path])
+                    #if np.sum(label_[:, :, slice_]) > 0:
+                    self.L.append([subject, slice_, mri_path, label_path])
 
             self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
 
         elif phase == 'validating':
-            for i, subject in enumerate(self.subjects[4]):
+            for i, subject in enumerate(self.subjects[:]):
+                mri_path = os.path.join(self.path, subject, mri_name)
+                label_path = os.path.join(self.path, subject, label_name)
+
+                for slice_ in range(slices):
+                    self.L.append([subject, slice_, mri_path, label_path])
+
+            self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
+
+        elif phase == 'testing':
+            for subject in self.subjects[:]:
+                print(f'{subject=}')
                 mri_path = os.path.join(self.path, subject, mri_name)
                 label_path = os.path.join(self.path, subject, label_name)
 
@@ -47,29 +58,45 @@ class FewShot_Dataloader(Dataset):
         return self.df.shape[0]
 
     def __getitem__(self, index):
-        if self.phase == 'training':
 
-            load_path = self.df.at[index, 'Path MRI']
-            mri = np.int16(nib.load(load_path).get_data())
-            load_slice = self.df.at[index, 'Slice']
-            label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
-            label = np.where(label_ == self.label_dict['GM'], label_, 0)
-            #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
-            #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
-            return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
+        load_path = self.df.at[index, 'Path MRI']
+        mri = np.int16(nib.load(load_path).get_data())
+        load_slice = self.df.at[index, 'Slice']
+        label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
+        label = np.where(label_ == self.label_dict['GM'], label_, 0)
+        #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
+        #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
+        return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
-        elif self.phase == 'validating':
-            load_path = self.df.at[index, 'Path MRI']
-            mri = nib.load(load_path).get_data()
-            load_slice = self.df.at[index, 'Slice']
-            label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
-            label = np.where(label_ == self.label_dict['GM'], label_, 0)
-            #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
-            #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
-            return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
+        # if self.phase == 'training':
+        #     load_path = self.df.at[index, 'Path MRI']
+        #     mri = np.int16(nib.load(load_path).get_data())
+        #     load_slice = self.df.at[index, 'Slice']
+        #     label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
+        #     label = np.where(label_ == self.label_dict['GM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
+        #     return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
-        elif self.phase == 'testing':
-            pass #return self.patches[index], self.whole_vol
+        # elif self.phase == 'validating':
+        #     load_path = self.df.at[index, 'Path MRI']
+        #     mri = np.int16(nib.load(load_path).get_data())
+        #     load_slice = self.df.at[index, 'Slice']
+        #     label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
+        #     label = np.where(label_ == self.label_dict['GM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
+        #     return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
+
+        # elif self.phase == 'testing':
+        #     load_path = self.df.at[index, 'Path MRI']
+        #     mri = np.int16(nib.load(load_path).get_data())
+        #     load_slice = self.df.at[index, 'Slice']
+        #     label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
+        #     label = np.where(label_ == self.label_dict['GM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['WM'], label_, 0)
+        #     #label = label + np.where(label_ == self.label_dict['CSF'], label_, 0)
+        #     return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
 
 class unlabeled_Dataloader(Dataset):

@@ -23,15 +23,27 @@ def euclidean_dist(x, y):
 
 def cosine_dist(x, y):
     cos = nn.CosineSimilarity(dim=1)
-    # print(f'shape distancias = {cos(x, y).shape}')
         
-    return cos(x, y) #cos(x.unsqueeze(0), y)
+    return cos(x, y)
 
 def probs(x):
-    p = nn.Softmax(dim=0) #ReLU()
+    #p = nn.Softmax(dim=0) #ReLU()
 
-    return  p(x) #torch.sigmoid(x)
+    return torch.sigmoid(x) # p(x) #
 
+def dice_coeff(x, y, smooth=1e-6):
+
+    #comment out if your model contains a sigmoid or equivalent activation layer
+    #x = F.sigmoid(x)       
+    
+    #flatten label and prediction tensors
+    x = x.view(-1)
+    y = y.view(-1)
+    
+    intersection = (x * y).sum()                            
+    dice = torch.mean((2.*intersection + smooth)/(x.sum() + y.sum() + smooth))  
+    
+    return dice
 
 #PyTorch
 #https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch/notebook
@@ -48,7 +60,6 @@ class DiceLoss(nn.Module):
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        #print(f'{inputs.unique()=}, {targets.unique()=}')
         
         intersection = (inputs * targets).sum()                            
         dice = torch.mean((2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth))  

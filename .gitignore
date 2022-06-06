@@ -1,6 +1,7 @@
 *.pyc
 *.log
 *.pth
+*.txt
 **/__pycache__
 **/data
 *.ipynb_checkpoints
