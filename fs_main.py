@@ -16,7 +16,7 @@ from datasets.fewshot_sampler import NShotTaskSampler
 
 evaluation_episodes = 1000
 episodes_per_epoch = 15
-n_epochs = 50
+n_epochs = 100
 lr = 0.0001
 
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'

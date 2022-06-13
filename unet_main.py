@@ -9,12 +9,14 @@ from datasets.dataloader import FewShot_Dataloader
 from tqdm import tqdm
 from utils.plots import *
 
-n_epochs = 25
+n_epochs = 100
 batch_size = 4
 lr = 0.0001
 
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'
 VAL_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/val'
+
+PATH = './models/unet_weights_.pth'
 
 torch.cuda.empty_cache()
 
@@ -23,10 +25,8 @@ print(f'Parametros: {n_epochs=}, {batch_size=}, {lr=}\n')
 '''
 Crear datasets
 '''
-#transform = transforms.Compose([transforms.ToTensor()])
-
 train_mris = FewShot_Dataloader(
-    TRAIN_PATH, #'/media/davidjm/Disco_Compartido/david/datasets/MRBrainS13DataNii/TrainingData', \
+    TRAIN_PATH,
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
@@ -34,7 +34,7 @@ train_mris = FewShot_Dataloader(
 )
 
 val_mris = FewShot_Dataloader(
-    VAL_PATH, #'/media/davidjm/Disco_Compartido/david/datasets/MRBrainS13DataNii/TrainingData', \
+    VAL_PATH,
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
@@ -45,21 +45,17 @@ train_mris_dl = DataLoader(
     train_mris, 
     batch_size=batch_size,
     shuffle=True,
-    #num_workers=2
 )
 
 val_mris_dl = DataLoader(
     val_mris, 
     batch_size=batch_size,
-    #num_workers=2
 )
 
 print(f'Tamano del dataset: {train_mris.df.shape[0]} slices \n')
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
-
-#print(f'Tamano del dataset de entrenamiento: {train_mris_dl.len()}')
 
 unet = Unet(1, depth=5).to(device, dtype=torch.double)
 #print(torch.cuda.memory_summary(device=device, abbreviated=False))
@@ -69,16 +65,19 @@ criterion = DiceLoss()
 
 optimizer = Adam(unet.parameters(), lr=lr)
 
+best_score = 1.0
+
 for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
 
     running_loss = 0.0
     running_dice = 0.0
-    torch.cuda.empty_cache()
+    epoch_loss = 0.0
+    
+    print(f'\n\nEpoch {epoch + 1}\n')
+
     unet.train()
     
     for i, data in enumerate(train_mris_dl, 0):
-
-        torch.cuda.empty_cache()
 
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
@@ -92,18 +91,22 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
         outputs = unet(inputs)
         p1 = probs(outputs.squeeze(1))
         loss = criterion(p1, labels)
+        running_loss += loss.item()
         loss.backward()
         optimizer.step()
+        
+    epoch_loss = running_loss/(i + 1)
 
-        # print statistics
-        running_loss += loss.item()
-        if i % 4 == 3:    # print every 2000 mini-batches
-            print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 4:.3f}')
-            running_loss = 0.0
+    if epoch_loss < best_score:
+        best_score = epoch_loss
+        print(f'Updated weights file!')
+        torch.save(unet.state_dict(), PATH)
+
+    print(f'loss = {epoch_loss:.3f}, {best_score=:.3f}')
 
     unet.eval()
     with torch.no_grad():
-        for i, testdata in enumerate(val_mris_dl):
+        for j, testdata in enumerate(val_mris_dl):
             x, y = testdata
             x = x.unsqueeze(1).to(device, dtype=torch.double)
             y = y.to(device, dtype=torch.double)
@@ -112,13 +115,10 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
             pval = probs(p.squeeze(1))
             dice = dice_coeff(pval, y)
             running_dice += dice
-            print(f'Val dice = {dice.item():.3f}')
+            #print(f'Val dice = {dice.item():.3f}')
         
-        print(f'\nDice promedio epoca {epoch+1}: {running_dice/i:.3f}\n')
+    print(f'Val dice = {running_dice/(j + 1):.3f}\n')
 
-
-PATH = './models/unet_weights_.pth'
-torch.save(unet.state_dict(), PATH)
 print('Finished Training')
 
 
