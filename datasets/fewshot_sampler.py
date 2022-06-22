@@ -54,24 +54,6 @@ class NShotTaskSampler(Sampler):
 
     def __iter__(self):
 
-        # for _ in range(self.episodes_per_epoch):
-        #     batch = []
-
-        #     for task in range(self.num_tasks):
-        #         df = self.dataset.df # Como solo voy a trabajar una sola clase por ahora (GM) entonces 
-        #                              # le llevo todo el dataset. Si fuera a usar solo dos clases de una 
-        #                              # base de datos de 3 clases entonces seleccionaria solo las filas 
-        #                              # del dataframe que pertenezcan a esas dos clases.
-
-        #         batch_ = np.random.choice(self.dataset.df.shape[0], self.k*(self.n + self.q), replace=False)
-
-        #     yield np.stack(batch_)
-
-
-
-
-
-
         for _ in range(self.episodes_per_epoch):
             batch = []
 
@@ -82,6 +64,7 @@ class NShotTaskSampler(Sampler):
                 else:
                     # Loop through classes in fixed_tasks
                     episode_classes = self.fixed_tasks[self.i_task % len(self.fixed_tasks)]
+                    #print(f'{episode_classes=}')
                     self.i_task += 1
 
                 df = self.dataset.df[self.dataset.df['Class ID'].isin(episode_classes)]
@@ -93,11 +76,11 @@ class NShotTaskSampler(Sampler):
                     support_k[k] = support
 
                     for i, s in support.iterrows():
-                        batch.append(s)#(s['id'])
+                        batch.append(s['id'])#(s)#
 
                 for k in episode_classes:
                     query = df[(df['Class ID'] == k) & (~df['id'].isin(support_k[k]['id']))].sample(self.q)
                     for i, q in query.iterrows():
-                        batch.append(q)#(q['id'])
+                        batch.append(q['id'])#(q)#
 
             yield np.stack(batch)

@@ -5,11 +5,11 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from models.unet import Unet
 from models.metrics import * 
-from datasets.dataloader import FewShot_Dataloader
+from datasets.dataloader import UnetDataloader
 from tqdm import tqdm
 from utils.plots import *
 
-n_epochs = 100
+n_epochs = 5 #100
 batch_size = 4
 lr = 0.0001
 
@@ -25,20 +25,20 @@ print(f'Parametros: {n_epochs=}, {batch_size=}, {lr=}\n')
 '''
 Crear datasets
 '''
-train_mris = FewShot_Dataloader(
+train_mris = UnetDataloader(
     TRAIN_PATH,
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
-    'training'
+    #'training'
 )
 
-val_mris = FewShot_Dataloader(
+val_mris = UnetDataloader(
     VAL_PATH,
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
-    'validating'
+    #'validating'
 )
 
 train_mris_dl = DataLoader(
@@ -61,7 +61,8 @@ unet = Unet(1, depth=5).to(device, dtype=torch.double)
 #print(torch.cuda.memory_summary(device=device, abbreviated=False))
 
 #criterion = nn.BCELoss()
-criterion = DiceLoss()
+criterion = nn.CrossEntropyLoss()
+#criterion = DiceLoss()
 
 optimizer = Adam(unet.parameters(), lr=lr)
 
@@ -90,7 +91,7 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
         # forward + backward + optimize
         outputs = unet(inputs)
         p1 = probs(outputs.squeeze(1))
-        loss = criterion(p1, labels)
+        loss = criterion(outputs.squeeze(1), labels)
         running_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -100,7 +101,7 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
     if epoch_loss < best_score:
         best_score = epoch_loss
         print(f'Updated weights file!')
-        torch.save(unet.state_dict(), PATH)
+        #torch.save(unet.state_dict(), PATH)
 
     print(f'loss = {epoch_loss:.3f}, {best_score=:.3f}')
 

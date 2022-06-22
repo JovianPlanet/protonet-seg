@@ -13,10 +13,11 @@ from models.metrics import *
 from datasets.dataloader import FewShot_Dataloader
 from datasets.fewshot_sampler import NShotTaskSampler
 
+torch.cuda.empty_cache()
 
 evaluation_episodes = 1000
 episodes_per_epoch = 15
-n_epochs = 100
+n_epochs = 50
 lr = 0.0001
 
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'
@@ -25,21 +26,21 @@ VAL_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/val'
 '''
 k clases, n muestras, q queries
 '''
-n_train = 8 # n shots (train)
-n_test = 5 # n shots (test)
-k_train = 1 # k way (k classes) (train)
-k_test = 1 # k way (k classes) (test)
-q_train = 5 # q queries (train)
-q_test = 1 # q queries (test)
+n_train = 3 # n shots (train)
+k_train = 1    # k way (k classes) (train)
+q_train = 3 # q queries (train)
+
+n_val = 5 # n shots (val)
+k_val = 1 # k way (k classes) (val)
+q_val = 1 # q queries (val)
 
 print(f'Parametros: {episodes_per_epoch=}, {n_epochs=}, {n_train=}, {k_train=}, {q_train=}, {lr=}')
 
 '''
 Crear datasets
 '''
-
 train_mris = FewShot_Dataloader(
-    TRAIN_PATH, #'/media/davidjm/Disco_Compartido/david/datasets/MRBrainS13DataNii/TrainingData', \
+    TRAIN_PATH,
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
@@ -47,7 +48,7 @@ train_mris = FewShot_Dataloader(
 )
 
 val_mris = FewShot_Dataloader(
-    VAL_PATH, #'/media/davidjm/Disco_Compartido/david/datasets/MRBrainS13DataNii/TrainingData', \
+    VAL_PATH, 
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
@@ -56,12 +57,24 @@ val_mris = FewShot_Dataloader(
 
 train_mris_dl = DataLoader(
     train_mris, 
-    batch_sampler=NShotTaskSampler(train_mris, episodes_per_epoch, n_train, k_train, q_train),
+    batch_sampler=NShotTaskSampler(train_mris, 
+                                   episodes_per_epoch, 
+                                   n_train, 
+                                   k_train, 
+                                   q_train, 
+                                   fixed_tasks=[['GM', 'WM', 'CSF']] #[['GM']] #
+                                   ),
 )
 
 val_mris_dl = DataLoader(
     val_mris, 
-    batch_sampler=NShotTaskSampler(val_mris, episodes_per_epoch, n_test, k_test, q_test),
+    batch_sampler=NShotTaskSampler(val_mris, 
+                                   episodes_per_epoch, 
+                                   n_val, 
+                                   k_val, 
+                                   q_val, 
+                                   fixed_tasks=[['GM', 'WM', 'CSF']]
+                                   ),
 )
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -69,19 +82,16 @@ print(f"Using {device} device")
 
 unet = UnetEncoder(1, depth=5).to(device, dtype=torch.double)
 
-# criterion1 = nn.CrossEntropyLoss()
-# criterion2 = nn.CrossEntropyLoss()
+criterion1 = nn.CrossEntropyLoss()
+criterion2 = nn.CrossEntropyLoss()
 
-# criterion1 = nn.BCELoss()
-# criterion2 = nn.BCELoss()
+# criterion1 = DiceLoss()
+# criterion2 = DiceLoss()
 
-criterion1 = DiceLoss()
-criterion2 = DiceLoss()
-#optimizer = SGD(unet.parameters(), lr=0.001, momentum=0.9)
 optimizer = Adam(unet.parameters(), lr=lr)
 
-n_supp_train = n_train*k_train
-n_supp_val = n_test*k_test
+n_supp_train = 3*n_train #n_train*k_train
+n_supp_val = n_val*k_val
 n_query = k_train*q_train
 
 train(unet, optimizer, \
