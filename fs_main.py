@@ -16,8 +16,8 @@ from datasets.fewshot_sampler import NShotTaskSampler
 torch.cuda.empty_cache()
 
 evaluation_episodes = 1000
-episodes_per_epoch = 15
-n_epochs = 50
+episodes_per_epoch = 10
+n_epochs = 150
 lr = 0.0001
 
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'
@@ -34,7 +34,15 @@ n_val = 5 # n shots (val)
 k_val = 1 # k way (k classes) (val)
 q_val = 1 # q queries (val)
 
-print(f'Parametros: {episodes_per_epoch=}, {n_epochs=}, {n_train=}, {k_train=}, {q_train=}, {lr=}')
+classes = ['GM', 'WM', 'CSF']
+
+print(f'Parametros: {episodes_per_epoch=}, \
+                    {n_epochs=}, \
+                    {n_train=}, \
+                    {k_train=}, \
+                    {q_train=}, \
+                    {lr=}'
+)
 
 '''
 Crear datasets
@@ -62,7 +70,7 @@ train_mris_dl = DataLoader(
                                    n_train, 
                                    k_train, 
                                    q_train, 
-                                   fixed_tasks=[['GM', 'WM', 'CSF']] #[['GM']] #
+                                   fixed_tasks=[classes]
                                    ),
 )
 
@@ -73,7 +81,7 @@ val_mris_dl = DataLoader(
                                    n_val, 
                                    k_val, 
                                    q_val, 
-                                   fixed_tasks=[['GM', 'WM', 'CSF']]
+                                   fixed_tasks=[classes]
                                    ),
 )
 
@@ -82,23 +90,29 @@ print(f"Using {device} device")
 
 unet = UnetEncoder(1, depth=5).to(device, dtype=torch.double)
 
-criterion1 = nn.CrossEntropyLoss()
-criterion2 = nn.CrossEntropyLoss()
+# criterion1 = nn.CrossEntropyLoss()
+# criterion2 = nn.CrossEntropyLoss()
 
-# criterion1 = DiceLoss()
-# criterion2 = DiceLoss()
+criterion1 = DiceLoss()
+criterion2 = DiceLoss()
 
 optimizer = Adam(unet.parameters(), lr=lr)
 
-n_supp_train = 3*n_train #n_train*k_train
-n_supp_val = n_val*k_val
+n_supp_train = len(classes)*n_train #n_train*k_train
+n_supp_val = len(classes)*n_val #n_val*k_val
 n_query = k_train*q_train
 
-train(unet, optimizer, \
-      train_mris_dl, val_mris_dl, \
-      criterion1, criterion2, \
-      n_supp_train, n_supp_val, \
-      n_epochs, device)
+train(unet, 
+      optimizer,
+      train_mris_dl, 
+      val_mris_dl,
+      criterion1, 
+      criterion2,
+      n_supp_train, 
+      n_supp_val,
+      n_epochs, 
+      device
+)
 
 print('Finished Training')
 

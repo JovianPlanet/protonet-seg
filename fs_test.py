@@ -6,8 +6,7 @@ from models.unet import UnetEncoder
 from models.metrics import * 
 from utils.plots import *
 
-
-PATH_SUPERVISED = './models/fs_weights.pth'
+PATH_SUPERVISED = './models/fsmulti_weights.pth'
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 
 n_test = 5 # n shots (test)
@@ -16,8 +15,12 @@ q_test = 5 # q queries (test)
 
 episodes_per_epoch = 1
 
+classes = ['GM', 'WM', 'CSF']
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
+
+torch.cuda.empty_cache()
 
 test_ds = FewShot_Dataloader(
     TEST_PATH,
@@ -29,10 +32,16 @@ test_ds = FewShot_Dataloader(
 
 test_mris = DataLoader(
     test_ds, 
-    batch_sampler=NShotTaskSampler(test_ds, episodes_per_epoch, n_test, k_test, q_test),
+    batch_sampler=NShotTaskSampler(test_ds, 
+                                   episodes_per_epoch, 
+                                   n_test, 
+                                   k_test, 
+                                   q_test,
+                                   fixed_tasks=[classes]
+                                  ),
 )
 
-supp = n_test*k_test
+supp = len(classes)*n_test # n_test*k_test
 unet = UnetEncoder(1, depth=5).to(device, dtype=torch.double)
 unet.load_state_dict(torch.load(PATH_SUPERVISED))
 
@@ -56,27 +65,20 @@ with torch.no_grad():
         f_s = f[:supp]
         f_q = f[supp:]
 
-        idx_b = y_s==0 # Pertenecen al background
-        idx_1 = y_s==1 # Pertenecen a la clase
-        idx_b = idx_b.unsqueeze(axis=1)
-        idx_1 = idx_1.unsqueeze(axis=1)
+        d1 = get_prototype_all(f_s, y_s, f_q)
 
-        f_s_mask = f_s*idx_1
+        dice = 0.0
+        for k, d in enumerate(d1[1:]):
 
-        proto = torch.sum(f_s_mask, dim=(0, 2, 3))
-        sum_ = torch.sum(idx_1)
-        if sum_ == 0:
-            proto = proto*0.0
-        else:
-            proto = proto / sum_
-        proto = proto.view(1, proto.shape[0], 1, 1)
+            dice += dice_coeff(d[k*n_test:(k*n_test)+n_test,:,:], 
+                               y_q[k*n_test:(k*n_test)+n_test,:,:].double()
+            )
 
-        dists = cosine_dist(proto, f_q)
+            plot_batch_full(x_q.squeeze(1)[k*n_test:(k*n_test)+n_test,:,:], 
+                            y_q[k*n_test:(k*n_test)+n_test,:,:], 
+                            d[k*n_test:(k*n_test)+n_test,:,:]>0.5
+            )
 
-        pval = torch.where(dists>0.8, 1, 0)
-        dice = dice_coeff(pval, y_q)
-        running_dice += dice
-        #print(f'{dice.item()=:.3f}')
-        plot_batch_full(x_q.squeeze(1), y_q, pval>0.8)
+        running_dice += dice/len(classes)
 
 print(f'Val dice = {running_dice/(j + 1):.3f}\n')

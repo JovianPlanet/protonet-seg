@@ -4,6 +4,7 @@
 *.txt
 **/__pycache__
 **/data
+**/predictions
 *.ipynb_checkpoints
 /datasets/test_dl.py
 example.py
