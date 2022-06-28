@@ -17,7 +17,7 @@ def train(model,
           epoch_size, 
           device):
 
-    PATH = './models/fsmul_wts_ep'+epoch_size+'.pth'
+    PATH = './models/fsmul_wts_ep'+str(epoch_size)+'.pth'
     #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5, last_epoch=-1)
 
     classes_dic = {'GM' : 1, 
