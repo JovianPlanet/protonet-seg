@@ -6,7 +6,9 @@ from models.unet import UnetEncoder
 from models.metrics import * 
 from utils.plots import *
 
-PATH_SUPERVISED = './models/fsmulti_weights.pth'
+#PATH_SUPERVISED = './models/best/fsmulti_weights-jun24.pth'
+PATH_SUPERVISED = './models/fsmul_wts-dice-ep50-20.pth'
+
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 
 n_test = 5 # n shots (test)
@@ -65,18 +67,18 @@ with torch.no_grad():
         f_s = f[:supp]
         f_q = f[supp:]
 
-        d1 = get_prototype_all(f_s, y_s, f_q)
+        d1 = get_prototype_all(f_s, y_s, f_q, n_test)
 
         dice = 0.0
-        for k, d in enumerate(d1[1:]):
+        for k, d in enumerate(d1):
 
-            dice += dice_coeff(d[k*n_test:(k*n_test)+n_test,:,:], 
+            dice += dice_coeff(d>0.9,#d[k*n_test:(k*n_test)+n_test,:,:], 
                                y_q[k*n_test:(k*n_test)+n_test,:,:].double()
             )
 
             plot_batch_full(x_q.squeeze(1)[k*n_test:(k*n_test)+n_test,:,:], 
                             y_q[k*n_test:(k*n_test)+n_test,:,:], 
-                            d[k*n_test:(k*n_test)+n_test,:,:]>0.5
+                            d>0.9#[k*n_test:(k*n_test)+n_test,:,:]>0.5
             )
 
         running_dice += dice/len(classes)

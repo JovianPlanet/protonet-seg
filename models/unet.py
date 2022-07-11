@@ -207,7 +207,7 @@ class Unet(nn.Module):
             up_conv = UpConv(ins, outs)
             self.up_convs.append(up_conv)
 
-        self.conv_final = conv1x1(outs, self.num_classes) # No necesito esta convolucion ya que voy a usar las caracteristicas
+        self.conv_final = conv1x1(outs, self.num_classes)
 
         # add the list of modules to current module
         self.down_convs = nn.ModuleList(self.down_convs)

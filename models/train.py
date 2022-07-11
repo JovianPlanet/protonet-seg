@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import torch
 import torch.optim as optim
-import numpy as np
 
 from models.metrics import *
 from utils.plots import * 
@@ -15,24 +14,31 @@ def train(model,
           n_supp_train, 
           n_supp_val,
           epoch_size, 
+          train_heads,
           device):
 
-    PATH = './models/fsmul_wts_ep'+str(epoch_size)+'.pth'
-    #scheduler = optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.5, last_epoch=-1)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 65, gamma=0.1, last_epoch=-1)
 
-    classes_dic = {'GM' : 1, 
-                   'BG' : 2, 
-                   'WM' : 3, 
-                   'WML' : 4,
-                   'CSF' : 5, 
-                   'VEN' : 6, 
-                   'CER' : 7, 
-                   'BSTEM' : 8,
-                   'BGR' : 0
-    }
+    '''
+
+    'GM' : 1, 
+    'BG' : 2, 
+    'WM' : 3, 
+    'WML' : 4,
+    'CSF' : 5, 
+    'VEN' : 6, 
+    'CER' : 7, 
+    'BSTEM' : 8,
+    'BGR' : 0
+
+    '''
 
     classes = ['GM', 'WM', 'CSF']
     num_classes = len(classes)
+
+    cr = 'dice'
+
+    PATH = './models/fsmul_wts-'+cr+'h-'+str(train_heads)+'-ep'+str(epoch_size)+'-10.pth'
 
     loss = 0.0
     best_dice = 4.0
@@ -53,6 +59,9 @@ def train(model,
 
         for i, episode in enumerate(train_mris):
 
+            loss1 = 0.0
+            loss2 = 0.0
+
             torch.cuda.empty_cache()
 
             inputs, labels = episode
@@ -63,47 +72,56 @@ def train(model,
             y_support = labels[:n_supp_train].to(device)
             y_query = labels[n_supp_train:].to(device)
 
-            #plot_batch(inputs[n_supp_train:], y_query)
+            # plot_batch(inputs[:n_supp_train], y_support)
 
             outputs = model(inputs)
-            #assert not torch.isnan(outputs).any(), f'Hay outputs nan'
 
             f_support = outputs[:n_supp_train]
             f_query = outputs[n_supp_train:]
 
             del inputs, outputs
 
-            d1 = get_prototype_all(f_support, y_support, f_query)
+            n_train = n_supp_train//num_classes
 
-            loss1 = criterion1(d1[0], y_query.double())
+            d1 = get_prototype_all(f_support, y_support, f_query, n_train)
 
-            for j, d in enumerate(d1[1:]):
+            if cr == 'dice':
 
-                loss1 += criterion1(d[j*num_classes:(j*num_classes)+num_classes,:,:], 
-                              y_query[j*num_classes:(j*num_classes)+num_classes,:,:].double()
-                )
+                ''' Si criterion es Dice coefficient'''
+                for j, d in enumerate(d1):
 
-            # Costo para cross-entropy
-            # p1 = torch.flatten(torch.stack(d1, dim=1), start_dim=2, end_dim=3)
-            # loss1 = criterion1(p1, torch.flatten(y_query, start_dim=1, end_dim=2).long())
+                    x1 = d>0.9
+                    y1 = torch.where(y_query[j*num_classes:(j*num_classes)+num_classes,:,:].double()>0.0, 1.0, 0.0)
+
+                    loss1 += criterion1(d*x1, y1)
+
+            elif cr == 'cross':
+
+                '''Costo para cross-entropy'''
+                p1 = torch.flatten(torch.stack(d1, dim=1), start_dim=2, end_dim=3)
+                loss1 = criterion1(p1, torch.flatten(y_query, start_dim=1, end_dim=2).long())
 
             del d1 
 
-            d2 = get_prototype_all(f_query, y_query, f_support)
+            d2 = get_prototype_all(f_query, y_query, f_support, n_train)
 
-            # Costo para cross-entropy
-            # p2 = torch.flatten(torch.stack(d2, dim=1), start_dim=2, end_dim=3)
-            # loss2 = criterion2(p2, torch.flatten(y_support, start_dim=1, end_dim=2).long())
+            if cr == 'dice':
 
-            loss2 = criterion2(d2[0], y_support.double())
+                ''' Si el costo es Dice coefficient '''
+                for m, d3 in enumerate(d2):
 
-            for m, d3 in enumerate(d2[1:]):
+                    x2 = d3>0.9
+                    y2 = torch.where(y_support[m*num_classes:(m*num_classes)+num_classes,:,:].double()>0.0, 1.0, 0.0)
 
-                loss2 += criterion2(d3[m*num_classes:(m*num_classes)+num_classes,:,:], 
-                            y_support[m*num_classes:(m*num_classes)+num_classes,:,:].double()
-                )
+                    loss2 += criterion2(d3*x2, y2)
 
-            del y_support, y_query, f_support, f_query, d2, d3
+            elif cr == 'cross':
+
+                '''Costo para cross-entropy'''
+                p2 = torch.flatten(torch.stack(d2, dim=1), start_dim=2, end_dim=3)
+                loss2 = criterion2(p2, torch.flatten(y_support, start_dim=1, end_dim=2).long())
+
+            del y_support, y_query, f_support, f_query, d2#, d3
 
             loss = loss1 + loss2
             running_loss += loss.item() 
@@ -111,13 +129,12 @@ def train(model,
 
             optimizer.step()
 
-        epoch_loss = running_loss/(4*(i + 1)) # 4=numero clases + background
+        epoch_loss = running_loss/(num_classes*(i + 1)) # 4=numero clases + background
         if epoch_ == 0: 
             best_loss = epoch_loss
         if epoch_loss < best_loss:
             best_loss = epoch_loss
-            #print(f'Updated weights file!')
-            #torch.save(model.state_dict(), PATH)
+
         print(f'loss = {epoch_loss:.3f}, {best_loss=:.3f}')
 
         model.eval()
@@ -128,6 +145,8 @@ def train(model,
                 x = x.unsqueeze(1).to(device, dtype=torch.double)
                 y = y.to(device, dtype=torch.double)
 
+                x_q = x[n_supp_val:]
+
                 y_s = y[:n_supp_val].to(device)
                 y_q = y[n_supp_val:].to(device)
 
@@ -136,19 +155,20 @@ def train(model,
                 f_s = f[:n_supp_val]
                 f_q = f[n_supp_val:]
 
-                dv = get_prototype_all(f_s, y_s, f_q)
-
                 dice = 0.0
                 n_val = n_supp_val//num_classes
-                for k, d in enumerate(dv[1:]):
 
-                    dice += dice_coeff(d[k*n_val:(k*n_val)+n_val,:,:], 
-                                       y_q[k*n_val:(k*n_val)+n_val,:,:].double()
-                    )
+                dv = get_prototype_all(f_s, y_s, f_q, n_val)
+
+                for k, d in enumerate(dv):
+
+                    y_q_ = torch.where(y_q[k*n_val:(k*n_val)+n_val,:,:].double()>0.0, 1.0, 0.0)
+
+                    dice += dice_coeff(d>0.9, y_q_)
 
                     # plot_batch_full(x_q.squeeze(1)[k*n_val:(k*n_val)+n_val,:,:], 
-                    #                 y_q[k*n_val:(k*n_val)+n_val,:,:], 
-                    #                 d[k*n_val:(k*n_val)+n_val,:,:]>0.5
+                    #                 y_q_, 
+                    #                 d>0.9
                     # )
 
                 running_dice += dice/num_classes
@@ -156,10 +176,12 @@ def train(model,
         epoch_dice = running_dice/(ind + 1)
         if epoch_ == 0: 
             best_dice = epoch_dice
-        if epoch_dice < best_dice:
+        if epoch_dice > best_dice:
             best_dice = epoch_dice
             print(f'Updated weights file!')
             torch.save(model.state_dict(), PATH)
         print(f'Val dice = {epoch_dice:.3f}, {best_dice=:.3f}\n')
 
-        #scheduler.step()
+        #print(f'{scheduler.get_last_lr()=}')
+
+        scheduler.step()

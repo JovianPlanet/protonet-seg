@@ -23,9 +23,9 @@ def get_prototype(f, y, class_):
 
     return p.view(1, p.shape[0], 1, 1)
 
-def get_prototype_all(f, y, f_q):
+def get_prototype_all(f, y, f_q, n_s):
 
-    classes = { 'BGR' : 0, 
+    classes = { #'BGR' : 0, 
                 'GM' : 1, 
                 'WM' : 2, 
                 'CSF' : 3, 
@@ -34,10 +34,10 @@ def get_prototype_all(f, y, f_q):
     dists = []
     for key, value in classes.items():
 
-        idx = y==value # Pertenecen a la clase
+        idx = y[n_s*(value-1):value*n_s]==value # Pertenecen a la clase
         idx = idx.unsqueeze(axis=1)
 
-        f_masked = f*idx
+        f_masked = f[n_s*(value-1):value*n_s]*idx
 
         p = torch.sum(f_masked, dim=(0, 2, 3))
         sum_ = torch.sum(idx)
@@ -46,7 +46,7 @@ def get_prototype_all(f, y, f_q):
         else:
             p = p / sum_
 
-        d = cosine_dist(p.view(1, p.shape[0], 1, 1), f_q)
+        d = cosine_dist(p.view(1, p.shape[0], 1, 1), f_q[n_s*(value-1):value*n_s])
         dists.append(d)
 
     return dists
@@ -89,6 +89,10 @@ def dice_coeff(x, y, smooth=1e-6):
     #flatten label and prediction tensors
     x = x.view(-1)
     y = y.view(-1)
+
+    if y.sum() == 0:
+        x = (x==0) 
+        y = (y==0)
     
     intersection = (x * y).sum()                            
     dice = torch.mean((2.*intersection + smooth)/(x.sum() + y.sum() + smooth))  
@@ -110,6 +114,10 @@ class DiceLoss(nn.Module):
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
+
+        # if targets.sum() == 0:
+        #     inputs = (inputs==0) 
+        #     targets = (targets==0)
         
         intersection = (inputs * targets).sum()                            
         dice = torch.mean((2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth))  

@@ -1,22 +1,27 @@
 import torch
 import torch.nn as nn
-from torch.optim import Adam, SGD
+from torch.optim import Adam
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
 from models.unet import Unet
 from models.metrics import * 
 from datasets.dataloader import UnetDataloader
 from tqdm import tqdm
 from utils.plots import *
 
-n_epochs = 5 #100
+n_epochs = 3#0
 batch_size = 4
 lr = 0.0001
 
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'
 VAL_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/val'
 
-PATH = './models/unet_weights_.pth'
+PATH = './models/unetmulti_weights_.pth'
+
+classes = {'GM': 1, 'WM': 2, 'CSF': 3}
+batch_dice = {'GM': None, 'WM': None, 'CSF': None}
+gen_dice = {'GM': 0.0, 'WM': 0.0, 'CSF': 0.0}
+
+num_classes = len(classes)
 
 torch.cuda.empty_cache()
 
@@ -30,7 +35,6 @@ train_mris = UnetDataloader(
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
-    #'training'
 )
 
 val_mris = UnetDataloader(
@@ -38,7 +42,6 @@ val_mris = UnetDataloader(
     'T1.nii', 
     'LabelsForTraining.nii', 
     48, 
-    #'validating'
 )
 
 train_mris_dl = DataLoader(
@@ -57,16 +60,15 @@ print(f'Tamano del dataset: {train_mris.df.shape[0]} slices \n')
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
-unet = Unet(1, depth=5).to(device, dtype=torch.double)
+unet = Unet(4, depth=5).to(device, dtype=torch.double)
 #print(torch.cuda.memory_summary(device=device, abbreviated=False))
 
-#criterion = nn.BCELoss()
 criterion = nn.CrossEntropyLoss()
 #criterion = DiceLoss()
 
 optimizer = Adam(unet.parameters(), lr=lr)
 
-best_score = 1.0
+best_loss = 1.0
 
 for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
 
@@ -90,20 +92,14 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
 
         # forward + backward + optimize
         outputs = unet(inputs)
-        p1 = probs(outputs.squeeze(1))
-        loss = criterion(outputs.squeeze(1), labels)
+        #plot_batch(masks_pred, labels)
+        
+        loss = criterion(outputs, labels.long())
         running_loss += loss.item()
         loss.backward()
         optimizer.step()
         
-    epoch_loss = running_loss/(i + 1)
-
-    if epoch_loss < best_score:
-        best_score = epoch_loss
-        print(f'Updated weights file!')
-        #torch.save(unet.state_dict(), PATH)
-
-    print(f'loss = {epoch_loss:.3f}, {best_score=:.3f}')
+    epoch_loss = running_loss/(i + 1)        
 
     unet.eval()
     with torch.no_grad():
@@ -112,13 +108,37 @@ for epoch in tqdm(range(n_epochs)):  # loop over the dataset multiple times
             x = x.unsqueeze(1).to(device, dtype=torch.double)
             y = y.to(device, dtype=torch.double)
 
-            p = unet(x)
-            pval = probs(p.squeeze(1))
-            dice = dice_coeff(pval, y)
-            running_dice += dice
-            #print(f'Val dice = {dice.item():.3f}')
-        
-    print(f'Val dice = {running_dice/(j + 1):.3f}\n')
+            outs = unet(x)
+            pval = probs(outs)
+            preds = torch.argmax(pval, dim=1)
+
+            for key, value in classes.items():
+                batch_dice[key] = dice_coeff(torch.where(preds==value, 1, 0), 
+                                  torch.where(y==value, 1, 0)
+                )
+                gen_dice[key] += batch_dice[key].item()
+
+    gen_dice = {k: v / (j+1) for k, v in gen_dice.items()}
+    epoch_dice = sum(gen_dice.values())/num_classes
+
+    if epoch == 0:
+        best_loss = epoch_loss
+        best_dice = epoch_dice
+
+    if epoch_loss < best_loss:
+        best_loss = epoch_loss
+
+    print(f'Loss = {epoch_loss:.3f}, Best loss = {best_loss:.3f}\n')
+
+    for key, value in gen_dice.items():
+        print(f'Validation {key} dice = {value:.3f}')
+
+    if epoch_dice > best_dice:
+        best_dice = epoch_dice
+        print(f'\nUpdated weights file!')
+        #torch.save(model.state_dict(), PATH)
+
+    print(f'\nDice = {epoch_dice:.3f}, Best dice = {best_dice:.3f}\n')
 
 print('Finished Training')
 
