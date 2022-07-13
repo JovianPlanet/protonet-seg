@@ -16,8 +16,8 @@ from datasets.fewshot_sampler import NShotTaskSampler
 torch.cuda.empty_cache()
 
 evaluation_episodes = 1000
-episodes_per_epoch = 10
-n_epochs = 100
+episodes_per_epoch = 50
+n_epochs = 5
 lr = 0.0001
 
 train_heads = 8
@@ -39,7 +39,7 @@ q_val = 1 # q queries (val)
 
 classes = ['GM', 'WM', 'CSF']
 
-for heads in range(train_heads, 0, -1):
+for heads in range(train_heads, 7, -1):
 
     print(f'\n\nParametros: {heads=}, \
                         {episodes_per_epoch=}, \

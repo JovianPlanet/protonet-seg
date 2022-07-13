@@ -7,17 +7,18 @@ from models.metrics import *
 from utils.plots import *
 
 #PATH_SUPERVISED = './models/best/fsmulti_weights-jun24.pth'
-PATH_SUPERVISED = './models/fsmul_wts-dice-ep50-20.pth'
+PATH_SUPERVISED = './models/fsmul_wts-diceh-8-ep100-10.pth'
 
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 
 n_test = 5 # n shots (test)
 k_test = 1 # k way (k classes) (test)
-q_test = 5 # q queries (test)
+q_test = 3 # q queries (test)
 
 episodes_per_epoch = 1
 
 classes = ['GM', 'WM', 'CSF']
+num_heads = 2
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
@@ -29,7 +30,7 @@ test_ds = FewShot_Dataloader(
     'T1.nii', 
     'LabelsForTraining.nii',
     48, 
-    'testing'
+    num_heads
 )
 
 test_mris = DataLoader(
@@ -62,24 +63,24 @@ with torch.no_grad():
         x_q = x[supp:]
         y_q = y[supp:].to(device)
 
+        print(f'{y_q.shape=}')
+
         f = unet(x)
 
         f_s = f[:supp]
         f_q = f[supp:]
 
-        d1 = get_prototype_all(f_s, y_s, f_q, n_test)
+        d1 = get_prototype_all(f_s, y_s, f_q, n_test, q_test)
 
         dice = 0.0
         for k, d in enumerate(d1):
 
-            dice += dice_coeff(d>0.9,#d[k*n_test:(k*n_test)+n_test,:,:], 
-                               y_q[k*n_test:(k*n_test)+n_test,:,:].double()
-            )
+            x = x_q.squeeze(1)[k*q_test:(k*q_test)+q_test,:,:]
+            y = torch.where(y_q[k*q_test:(k*q_test)+q_test,:,:]>0.0, 1.0, 0.0)
 
-            plot_batch_full(x_q.squeeze(1)[k*n_test:(k*n_test)+n_test,:,:], 
-                            y_q[k*n_test:(k*n_test)+n_test,:,:], 
-                            d>0.9#[k*n_test:(k*n_test)+n_test,:,:]>0.5
-            )
+            dice += dice_coeff(d>0.9, y.double())
+
+            plot_batch_full(x, y, d>0.9)
 
         running_dice += dice/len(classes)
 

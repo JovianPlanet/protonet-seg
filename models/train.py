@@ -38,7 +38,7 @@ def train(model,
 
     cr = 'dice'
 
-    PATH = './models/fsmul_wts-'+cr+'h-'+str(train_heads)+'-ep'+str(epoch_size)+'-10.pth'
+    PATH = './models/fsmul_wts-'+cr+'-h'+str(train_heads)+'-ep'+str(epoch_size)+'-10.pth'
 
     loss = 0.0
     best_dice = 4.0
@@ -82,8 +82,9 @@ def train(model,
             del inputs, outputs
 
             n_train = n_supp_train//num_classes
+            q_train = y_query.shape[0]//num_classes
 
-            d1 = get_prototype_all(f_support, y_support, f_query, n_train)
+            d1 = get_prototype_all(f_support, y_support, f_query, n_train, q_train)
 
             if cr == 'dice':
 
@@ -91,7 +92,7 @@ def train(model,
                 for j, d in enumerate(d1):
 
                     x1 = d>0.9
-                    y1 = torch.where(y_query[j*num_classes:(j*num_classes)+num_classes,:,:].double()>0.0, 1.0, 0.0)
+                    y1 = torch.where(y_query[j*q_train:(j*q_train)+q_train,:,:].double()>0.0, 1.0, 0.0)
 
                     loss1 += criterion1(d*x1, y1)
 
@@ -103,7 +104,7 @@ def train(model,
 
             del d1 
 
-            d2 = get_prototype_all(f_query, y_query, f_support, n_train)
+            d2 = get_prototype_all(f_query, y_query, f_support, q_train, n_train)
 
             if cr == 'dice':
 
@@ -111,7 +112,7 @@ def train(model,
                 for m, d3 in enumerate(d2):
 
                     x2 = d3>0.9
-                    y2 = torch.where(y_support[m*num_classes:(m*num_classes)+num_classes,:,:].double()>0.0, 1.0, 0.0)
+                    y2 = torch.where(y_support[m*n_train:(m*n_train)+n_train,:,:].double()>0.0, 1.0, 0.0)
 
                     loss2 += criterion2(d3*x2, y2)
 
@@ -157,16 +158,17 @@ def train(model,
 
                 dice = 0.0
                 n_val = n_supp_val//num_classes
+                q_val = y_q.shape[0]//num_classes
 
-                dv = get_prototype_all(f_s, y_s, f_q, n_val)
+                dv = get_prototype_all(f_s, y_s, f_q, n_val, q_val)
 
                 for k, d in enumerate(dv):
 
-                    y_q_ = torch.where(y_q[k*n_val:(k*n_val)+n_val,:,:].double()>0.0, 1.0, 0.0)
+                    y_q_ = torch.where(y_q[k*q_val:(k*q_val)+q_val,:,:].double()>0.0, 1.0, 0.0)
 
                     dice += dice_coeff(d>0.9, y_q_)
 
-                    # plot_batch_full(x_q.squeeze(1)[k*n_val:(k*n_val)+n_val,:,:], 
+                    # plot_batch_full(x_q.squeeze(1)[k*q_val:(k*q_val)+q_val,:,:], 
                     #                 y_q_, 
                     #                 d>0.9
                     # )
@@ -179,7 +181,7 @@ def train(model,
         if epoch_dice > best_dice:
             best_dice = epoch_dice
             print(f'Updated weights file!')
-            torch.save(model.state_dict(), PATH)
+            #torch.save(model.state_dict(), PATH)
         print(f'Val dice = {epoch_dice:.3f}, {best_dice=:.3f}\n')
 
         #print(f'{scheduler.get_last_lr()=}')

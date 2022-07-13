@@ -23,7 +23,7 @@ def get_prototype(f, y, class_):
 
     return p.view(1, p.shape[0], 1, 1)
 
-def get_prototype_all(f, y, f_q, n_s):
+def get_prototype_all(f, y, f_q, n_s, n_q):
 
     classes = { #'BGR' : 0, 
                 'GM' : 1, 
@@ -46,7 +46,7 @@ def get_prototype_all(f, y, f_q, n_s):
         else:
             p = p / sum_
 
-        d = cosine_dist(p.view(1, p.shape[0], 1, 1), f_q[n_s*(value-1):value*n_s])
+        d = cosine_dist(p.view(1, p.shape[0], 1, 1), f_q[n_q*(value-1):value*n_q])
         dists.append(d)
 
     return dists
