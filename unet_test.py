@@ -15,6 +15,8 @@ batch_dice = {'GM': None, 'WM': None, 'CSF': None}
 gen_dice = {'GM': 0.0, 'WM': 0.0, 'CSF': 0.0}
 num_classes = len(classes)
 
+val_heads = 2
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
@@ -23,6 +25,7 @@ test_ds = UnetDataloader(
     'T1.nii',
     'LabelsForTraining.nii',
     48, 
+    val_heads
 )
 
 test_mris = DataLoader(
@@ -53,6 +56,6 @@ with torch.no_grad():
             gen_dice[key] += batch_dice[key].item()
             #print(f'Test {key} Dice score (batch): {batch_dice[key].item()}')
 
-        #plot_batch_full(images.squeeze(1), labels, preds)
+        plot_batch_full(images.squeeze(1), labels, preds)
 gen_dice = {k: v / (i+1) for k, v in gen_dice.items()}
 print(f'{gen_dice.values()}, {sum(gen_dice.values())/num_classes:.3f}')

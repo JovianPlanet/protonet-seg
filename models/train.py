@@ -17,7 +17,7 @@ def train(model,
           train_heads,
           device):
 
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 65, gamma=0.1, last_epoch=-1)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 30, gamma=0.1, last_epoch=-1)
 
     '''
 
@@ -41,7 +41,7 @@ def train(model,
     PATH = './models/fsmul_wts-'+cr+'-h'+str(train_heads)+'-ep'+str(epoch_size)+'-10.pth'
 
     loss = 0.0
-    best_dice = 4.0
+    best_dice = 0.0
     best_loss = 0.0
 
     for epoch_ in tqdm(range(epoch_size)):
@@ -94,7 +94,7 @@ def train(model,
                     x1 = d>0.9
                     y1 = torch.where(y_query[j*q_train:(j*q_train)+q_train,:,:].double()>0.0, 1.0, 0.0)
 
-                    loss1 += criterion1(d*x1, y1)
+                    loss1 += criterion1(d, y1)
 
             elif cr == 'cross':
 
@@ -109,12 +109,12 @@ def train(model,
             if cr == 'dice':
 
                 ''' Si el costo es Dice coefficient '''
-                for m, d3 in enumerate(d2):
+                for m, d_ in enumerate(d2):
 
-                    x2 = d3>0.9
+                    x2 = d_>0.9
                     y2 = torch.where(y_support[m*n_train:(m*n_train)+n_train,:,:].double()>0.0, 1.0, 0.0)
 
-                    loss2 += criterion2(d3*x2, y2)
+                    loss2 += criterion2(d_, y2)
 
             elif cr == 'cross':
 
@@ -122,7 +122,7 @@ def train(model,
                 p2 = torch.flatten(torch.stack(d2, dim=1), start_dim=2, end_dim=3)
                 loss2 = criterion2(p2, torch.flatten(y_support, start_dim=1, end_dim=2).long())
 
-            del y_support, y_query, f_support, f_query, d2#, d3
+            del y_support, y_query, f_support, f_query, d2
 
             loss = loss1 + loss2
             running_loss += loss.item() 
@@ -130,13 +130,7 @@ def train(model,
 
             optimizer.step()
 
-        epoch_loss = running_loss/(num_classes*(i + 1)) # 4=numero clases + background
-        if epoch_ == 0: 
-            best_loss = epoch_loss
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
-
-        print(f'loss = {epoch_loss:.3f}, {best_loss=:.3f}')
+        epoch_loss = running_loss/(num_classes*(i + 1)) # 4=numero clases + background 
 
         model.eval()
         with torch.no_grad():
@@ -167,6 +161,7 @@ def train(model,
                     y_q_ = torch.where(y_q[k*q_val:(k*q_val)+q_val,:,:].double()>0.0, 1.0, 0.0)
 
                     dice += dice_coeff(d>0.9, y_q_)
+                    print(f'{dice_coeff(d, y_q_)}, {dice_coeff(d>0.9, y_q_)}, {nn.CosineSimilarity(dim=0)((d>0.9).view(-1), y_q_.view(-1))}')
 
                     # plot_batch_full(x_q.squeeze(1)[k*q_val:(k*q_val)+q_val,:,:], 
                     #                 y_q_, 
@@ -177,12 +172,20 @@ def train(model,
 
         epoch_dice = running_dice/(ind + 1)
         if epoch_ == 0: 
+            best_loss = epoch_loss
             best_dice = epoch_dice
+
+        if epoch_loss < best_loss:
+            best_loss = epoch_loss
+
+        print(f'Loss = {epoch_loss:.3f}, Best loss = {best_loss:.3f}')
+
         if epoch_dice > best_dice:
             best_dice = epoch_dice
             print(f'Updated weights file!')
-            #torch.save(model.state_dict(), PATH)
-        print(f'Val dice = {epoch_dice:.3f}, {best_dice=:.3f}\n')
+            torch.save(model.state_dict(), PATH)
+            
+        print(f'Dice = {epoch_dice:.3f}, Best dice = {best_dice:.3f}\n')
 
         #print(f'{scheduler.get_last_lr()=}')
 

@@ -7,7 +7,7 @@ from models.metrics import *
 from utils.plots import *
 
 #PATH_SUPERVISED = './models/best/fsmulti_weights-jun24.pth'
-PATH_SUPERVISED = './models/fsmul_wts-diceh-8-ep100-10.pth'
+PATH_SUPERVISED = './models/fsmul_wts-dice-h8-ep50-10.pth'
 
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 

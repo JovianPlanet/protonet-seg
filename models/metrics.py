@@ -77,7 +77,7 @@ def cosine_dist(x, y):
     return cos(x, y)
 
 def probs(x):
-    p = nn.Softmax(dim=1) #ReLU()
+    p = nn.Softmax(dim=1) # Softmax para multiclase
 
     return p(x) #torch.sigmoid(x) # 
 
@@ -87,8 +87,8 @@ def dice_coeff(x, y, smooth=1e-6):
     #x = F.sigmoid(x)       
     
     #flatten label and prediction tensors
-    x = x.view(-1)
-    y = y.view(-1)
+    x = x.reshape(-1)#view(-1)
+    y = y.reshape(-1)#view(-1)
 
     if y.sum() == 0:
         x = (x==0) 
@@ -112,14 +112,59 @@ class DiceLoss(nn.Module):
         #inputs = F.sigmoid(inputs)       
         
         #flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        inputs = inputs.reshape(-1)#view(-1)
+        targets = targets.reshape(-1)#view(-1)
 
-        # if targets.sum() == 0:
-        #     inputs = (inputs==0) 
-        #     targets = (targets==0)
+        if targets.sum() == 0:
+            inputs = (inputs==0) 
+            targets = (targets==0)
         
         intersection = (inputs * targets).sum()                            
         dice = torch.mean((2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth))  
         
         return 1.0 - dice
+
+
+''' *** '''
+
+def get_class_prototypes(f, y):
+
+    classes = { 'BGR' : 0, 
+                'GM'  : 1, 
+                'WM'  : 2, 
+                'CSF' : 3, 
+    }
+
+    p_c = {'BGR': None, 'GM': None, 'WM': None, 'CSF': None}
+
+    dists = []
+    for key, value in classes.items():
+
+        idx = y==value # Pertenecen a la clase
+        #print(f'{idx[0, 0, 0]}')
+
+        idx = idx.unsqueeze(axis=1)
+
+        f_masked = f*idx
+
+        p = torch.sum(f_masked, dim=(0, 2, 3))
+        sum_ = torch.sum(idx)
+        if sum_ == 0:
+            p = p*0.0
+        else:
+            p = p / sum_
+
+        p_c[key] = p.view(1, p.shape[0], 1, 1)
+
+    return p_c
+
+def get_dists(f_q, p_c):
+
+    dists = []
+
+    for key, p in p_c.items():
+        dists.append(cosine_dist(p, f_q))
+        
+    return torch.stack(dists, dim=1)
+
+

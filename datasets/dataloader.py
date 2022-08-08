@@ -20,7 +20,7 @@ class FewShot_Dataloader(Dataset):
 
         self.L = []
 
-        for i, subject in enumerate(self.subjects[:num_heads]):
+        for i, subject in enumerate(self.subjects[:self.num_heads]):
             mri_path = os.path.join(self.path, subject, mri_name)
             label_path = os.path.join(self.path, subject, label_name)
 
@@ -30,7 +30,7 @@ class FewShot_Dataloader(Dataset):
 
         self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label', 'Class ID'])
         self.df = self.df.assign(id=self.df.index.values)
-        #print(f'dataframe: \n{self.df} \n')
+        print(f'dataframe: \n{self.df} \n')
 
     def __len__(self):
 
@@ -43,22 +43,27 @@ class FewShot_Dataloader(Dataset):
         load_slice = self.df.at[index, 'Slice']
         label_ = np.int16(nib.load(self.df.at[index, 'Path Label']).get_data())
 
-        if self.df.at[index, 'Class ID'] == 'GM':
-            label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 1, 0)
-        elif self.df.at[index, 'Class ID'] == 'WM':
-            label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 2, 0)
-        elif self.df.at[index, 'Class ID'] == 'CSF':
-            label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 3, 0)
+        # if self.df.at[index, 'Class ID'] == 'GM':
+        #     label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 1, 0)
+        # elif self.df.at[index, 'Class ID'] == 'WM':
+        #     label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 2, 0)
+        # elif self.df.at[index, 'Class ID'] == 'CSF':
+        #     label = np.where(label_ == self.label_dict[self.df.at[index, 'Class ID']], 3, 0)
+
+        label = np.where((label_==1) | (label_==3) | (label_==5), label_, 0)
+
+        label = np.where(label==3, 2, label)
+        label = np.where(label==5, 3, label)
 
         return mri[:, :, load_slice], label[:, :, load_slice]#, load_path, load_slice
 
 
 class UnetDataloader(Dataset):
 
-    def __init__(self, path, mri_name, label_name, slices): #(self, config, phase):
+    def __init__(self, path, mri_name, label_name, slices, num_heads):
 
-        #assert phase in ['training', 'validating', 'testing']
-        #self.phase = phase
+        self.num_heads = num_heads
+
         self.path = path
         self.label_dict = { 'GM' : 1, 'BG' : 2, 'WM' : 3, 'WML' : 4,
                             'CSF' : 5, 'VEN' : 6, 'CER' : 7, 'BSTEM' : 8}
@@ -69,7 +74,7 @@ class UnetDataloader(Dataset):
 
         self.L = []
 
-        for i, subject in enumerate(self.subjects[:]):
+        for i, subject in enumerate(self.subjects[:self.num_heads]):
             mri_path = os.path.join(self.path, subject, mri_name)
             label_path = os.path.join(self.path, subject, label_name)
 
@@ -79,7 +84,7 @@ class UnetDataloader(Dataset):
 
         self.df = pd.DataFrame(self.L, columns=['Subject', 'Slice', 'Path MRI', 'Path Label'])
         self.df = self.df.assign(id=self.df.index.values)
-        print(f'dataframe: \n{self.df} \n')
+        #print(f'dataframe: \n{self.df} \n')
 
     def __len__(self):
 
