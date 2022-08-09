@@ -154,6 +154,9 @@ class UnetEncoder(nn.Module):
             x, before_pool = module(x)
             encoder_outs.append(before_pool)
 
+        '''Comentar el siguiente ciclo for para eliminar el camino de expansi'on 
+        (reconstruccion de la imagen) de la codificacion'''
+        
         for i, module in enumerate(self.up_convs):
             before_pool = encoder_outs[-(i+2)]
             x = module(before_pool, x)
@@ -207,7 +210,7 @@ class Unet(nn.Module):
             up_conv = UpConv(ins, outs)
             self.up_convs.append(up_conv)
 
-        self.conv_final = conv1x1(outs, self.num_classes) # No necesito esta convolucion ya que voy a usar las caracteristicas
+        self.conv_final = conv1x1(outs, self.num_classes)
 
         # add the list of modules to current module
         self.down_convs = nn.ModuleList(self.down_convs)

@@ -1,24 +1,31 @@
 import torch
 from torch.utils.data import DataLoader
-from datasets.dataloader import FewShot_Dataloader
+from datasets.dataloader import UnetDataloader
 from models.unet import Unet
 from models.metrics import * 
 from utils.plots import *
 
 
-PATH_SUPERVISED = './models/unet_weights_.pth'
+PATH_SUPERVISED = './models/unetmulti_weights_.pth'
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 batch_size = 4
+
+classes = {'GM': 1, 'WM': 2, 'CSF': 3}
+batch_dice = {'GM': None, 'WM': None, 'CSF': None}
+gen_dice = {'GM': 0.0, 'WM': 0.0, 'CSF': 0.0}
+num_classes = len(classes)
+
+val_heads = 2
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
 
-test_ds = FewShot_Dataloader(
+test_ds = UnetDataloader(
     TEST_PATH,
     'T1.nii',
     'LabelsForTraining.nii',
     48, 
-    'testing'
+    val_heads
 )
 
 test_mris = DataLoader(
@@ -26,7 +33,7 @@ test_mris = DataLoader(
     batch_size=batch_size,
 )
 
-unet = Unet(1, depth=5).to(device, dtype=torch.double)
+unet = Unet(num_classes=4, depth=5).to(device, dtype=torch.double)
 unet.load_state_dict(torch.load(PATH_SUPERVISED))
 
 # since we're not training, we don't need to calculate the gradients for our outputs
@@ -36,11 +43,19 @@ with torch.no_grad():
         images, labels = data
         images = images.unsqueeze(1).to(device, dtype=torch.double)
         labels = labels.to(device, dtype=torch.double)
+
         # calculate outputs by running images through the network
         outputs = unet(images)
-        pval = probs(outputs.squeeze(1))
-        dice = dice_coeff(pval, labels)
-        print(f'Test Dice score: {dice}')
-        #if i==6:
-        plot_batch_full(images.squeeze(1), labels, pval>0.8)
-        
+        pval = probs(outputs)
+        preds = torch.argmax(pval, dim=1)
+
+        for key, value in classes.items():
+            batch_dice[key] = dice_coeff(torch.where(preds==value, 1, 0), 
+                              torch.where(labels==value, 1, 0)
+            )
+            gen_dice[key] += batch_dice[key].item()
+            #print(f'Test {key} Dice score (batch): {batch_dice[key].item()}')
+
+        plot_batch_full(images.squeeze(1), labels, preds)
+gen_dice = {k: v / (i+1) for k, v in gen_dice.items()}
+print(f'{gen_dice.values()}, {sum(gen_dice.values())/num_classes:.3f}')
