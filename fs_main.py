@@ -10,7 +10,6 @@ from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 
 from models.unet import UnetEncoder
-from models.train import train
 from models.metrics import *
 
 from datasets.dataloader import FewShot_Dataloader, UnetDataloader
