@@ -33,9 +33,9 @@ VAL_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/val'
 '''
 k clases, n muestras, q queries
 '''
-n_train = 12#3 # n shots (train)
+n_train = 6#3 # n shots (train)
 k_train = 1 # k way (k classes) (train)
-q_train = 12 # q queries (train)
+q_train = 6 # q queries (train)
 
 n_val = 10#5 # n shots (val)
 k_val = 1 # k way (k classes) (val)
@@ -205,6 +205,11 @@ for heads in range(train_heads, 7, -1):
 
             outputs = unet(inputs)
 
+            print(f'{outputs.size()=}')
+
+            outputs = F.interpolate(outputs.unsqueeze(0), size=(2, 240, 240)).squeeze(0)#, mode='bilinear')
+            print(f'{outputs.shape=}')
+
             f_support = outputs[:n_supp_train]
             f_query = outputs[n_supp_train:]
 
@@ -294,6 +299,8 @@ for heads in range(train_heads, 7, -1):
 
                 f = unet(x)
 
+                f = F.interpolate(f.unsqueeze(0), size=(2, 240, 240)).squeeze(0)#, mode='bilinear')
+
                 f_s = f[:n_supp_val]
                 f_q = f[n_supp_val:]
 
@@ -306,7 +313,7 @@ for heads in range(train_heads, 7, -1):
 
                 #plot_batch(mv, y_q)
 
-                test = True
+                test = False
                 if test:
                     t = F.one_hot(mv)
                     t = torch.autograd.Variable(t.double(), requires_grad=True)
@@ -339,12 +346,12 @@ for heads in range(train_heads, 7, -1):
 
         for key, value in gen_dice.items():
             print(f'Validation {key} dice = {value:.3f}')
-        print(f'one hot dice = {tdice/(ind+1)}')
+        #print(f'one hot dice = {tdice/(ind+1)}')
 
         if epoch_dice > best_dice:
             best_dice = epoch_dice
-            #print(f'\nUpdated weights file!')
-            torch.save(unet.state_dict(), PATH)
+            print(f'\nUpdated weights file!')
+            #torch.save(unet.state_dict(), PATH)
             
         print(f'\nDice = {epoch_dice:.3f}, Best dice = {best_dice:.3f}\n')
 

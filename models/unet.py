@@ -157,9 +157,9 @@ class UnetEncoder(nn.Module):
         '''Comentar el siguiente ciclo for para eliminar el camino de expansi'on 
         (reconstruccion de la imagen) de la codificacion'''
         
-        for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
-            x = module(before_pool, x)
+        # for i, module in enumerate(self.up_convs):
+        #     before_pool = encoder_outs[-(i+2)]
+        #     x = module(before_pool, x)
         
         # No softmax is used. This means you need to use
         # nn.CrossEntropyLoss is your training script,

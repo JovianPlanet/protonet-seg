@@ -14,7 +14,7 @@ class FS_Encoder(nn.Module):
 
     def conv_block(self, in_channels, out_channels):
         return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.Conv2d(in_channels, out_channels, 1, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2) #, stride=2)
@@ -23,7 +23,7 @@ class FS_Encoder(nn.Module):
     def forward(self, x):
         features = self.encoder(x)
         #print(f'Features shape = {features.shape}\n')
-        return self.flatten(features)
+        return features #self.flatten(features)
 
 
 '''
