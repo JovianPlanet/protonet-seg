@@ -27,6 +27,8 @@ lr = 0.0001
 train_heads = 8
 val_heads = 2
 
+cr = 'cross'
+
 TRAIN_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/train'
 VAL_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/val'
 
@@ -50,13 +52,17 @@ tdice = 0.
 classes = ['GM', 'WM', 'CSF']
 num_classes = len(classes)
 
-cr = 'cross'
+losses = []
+dices = []
+
+PATH_LOSS = './models/fsmul_LOSS-'+cr+'-ep'+str(n_epochs)+'.pth'
+PATH_DICE = './models/fsmul_DICE-'+cr+'-ep'+str(n_epochs)+'.pth'
 
 # lrs = [0.0001, 0.0003]
 
 # for lr in lrs:
 
-for heads in range(train_heads, 7, -1):
+for heads in range(train_heads, 0, -1):
 
     PATH = './models/fsmul_wts-'+cr+'-h'+str(heads)+'-ep'+str(n_epochs)+'-10_.pth'
 
@@ -173,6 +179,8 @@ for heads in range(train_heads, 7, -1):
     
     best_dice = 0.0
     best_loss = 0.0
+    head_losses = []
+    head_dice = []
 
     for epoch_ in tqdm(range(n_epochs)):
 
@@ -275,6 +283,7 @@ for heads in range(train_heads, 7, -1):
             optimizer.step()
 
         epoch_loss = running_loss/(2*(i + 1)) # 4=numero clases + background 
+        head_losses.append(epoch_loss)
 
         tdice = 0.0
         gen_dice = {'GM': 0.0, 'WM': 0.0, 'CSF': 0.0}
@@ -327,6 +336,7 @@ for heads in range(train_heads, 7, -1):
 
         gen_dice = {k: v / (ind+1) for k, v in gen_dice.items()}
         epoch_dice = sum(gen_dice.values())/num_classes
+        head_dice.append(epoch_dice)
 
         if epoch_ == 0: 
             best_loss = epoch_loss
@@ -343,7 +353,7 @@ for heads in range(train_heads, 7, -1):
 
         if epoch_dice > best_dice:
             best_dice = epoch_dice
-            #print(f'\nUpdated weights file!')
+            print(f'\nUpdated weights file!')
             torch.save(unet.state_dict(), PATH)
             
         print(f'\nDice = {epoch_dice:.3f}, Best dice = {best_dice:.3f}\n')
@@ -351,6 +361,15 @@ for heads in range(train_heads, 7, -1):
         #print(f'lr = {scheduler.get_last_lr()}\n')
 
         #scheduler.step(epoch_loss)
+
+    losses.append(head_losses)
+    dices.append(head_dice)
+
+losses = torch.tensor(losses)
+torch.save(losses, PATH_LOSS)
+
+dices = torch.tensor(dices)
+torch.save(dices, PATH_DICE)
 
 print('Finished Training')
 
