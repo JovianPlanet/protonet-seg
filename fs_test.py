@@ -9,7 +9,7 @@ from models.metrics import *
 from utils.plots import *
 
 #PATH_SUPERVISED = './models/best/fsmulti_weights-jun24.pth'
-PATH_SUPERVISED = './models/fsmul_wts-cross-h1-ep25-10_.pth'
+PATH_SUPERVISED = './models/fsmul_wts-cross-h8-ep25-10_.pth'
 
 TEST_PATH = '/media/davidjm/Disco_Compartido/david/datasets/MRBrainS-All/test'
 
@@ -53,7 +53,7 @@ test_mris = DataLoader(
 )
 
 supp = len(classes)*n_test # n_test*k_test
-unet = UnetEncoder(1, depth=5).to(device, dtype=torch.double)
+unet = UnetEncoder(1, depth=5, start_filts=32).to(device, dtype=torch.double)
 unet.load_state_dict(torch.load(PATH_SUPERVISED))
 #print(f'{summary(unet.double(), (18, 1, 240, 240))}')
 
