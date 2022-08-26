@@ -22,7 +22,7 @@ torch.cuda.empty_cache()
 evaluation_episodes = 1000
 episodes_per_epoch = 5
 n_epochs = 25
-lr = 0.0001
+lr = 0.001
 
 train_heads = 8
 val_heads = 2
@@ -143,7 +143,7 @@ for heads in range(train_heads, 7, -1):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
 
-    unet = UnetEncoder(1, depth=5, start_filts=32).to(device, dtype=torch.double)
+    unet = UnetEncoder(1, depth=5, start_filts=16).to(device, dtype=torch.double)
 
     if cr == 'cross':
 
@@ -207,7 +207,11 @@ for heads in range(train_heads, 7, -1):
 
             print(f'{outputs.size()=}')
 
-            outputs = F.interpolate(outputs.unsqueeze(0), size=(2, 240, 240)).squeeze(0)#, mode='bilinear')
+            outputs = F.interpolate(outputs,#.unsqueeze(0), 
+                                    size=[15*16, 15*16],#(2, 240, 240),
+                                    mode='bilinear', 
+                                    align_corners=True
+            )#.squeeze(0)
             print(f'{outputs.shape=}')
 
             f_support = outputs[:n_supp_train]
@@ -299,7 +303,11 @@ for heads in range(train_heads, 7, -1):
 
                 f = unet(x)
 
-                f = F.interpolate(f.unsqueeze(0), size=(2, 240, 240)).squeeze(0)#, mode='bilinear')
+                f = F.interpolate(f,#.unsqueeze(0), 
+                                  size=[15*16, 15*16],#(2, 240, 240),
+                                  mode='bilinear', 
+                                  align_corners=True,
+                )#.squeeze(0)#, mode='bilinear')
 
                 f_s = f[:n_supp_val]
                 f_q = f[n_supp_val:]
